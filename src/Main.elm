@@ -4,8 +4,8 @@ import Browser
 import Date
 import Html as H exposing (Html)
 import Html.Attributes as Attr
+import List.Extra
 import Time
-import Utils
 
 
 main : Program () Model Msg
@@ -36,81 +36,124 @@ update _ _ =
     ( 1, Cmd.none )
 
 
-view : Model -> Html Msg
-view _ =
-    H.div [] <|
-        [ viewMonth (Utils.getDatesToRender Time.Sun Time.Jul 2023) ]
-
-
-viewDay : Utils.CalendarDate -> Html Msg
-viewDay { date, dateBelongsToCurrentMonth } =
-    H.div
-        [ Attr.class "flex items-center justify-center"
-        , Attr.class
-            (if dateBelongsToCurrentMonth then
-                ""
-
-             else
-                "opacity-10"
-            )
-        ]
-        [ H.text <| Date.format "d" date ]
-
-
-viewWeek : List Utils.CalendarDate -> List (Html Msg)
-viewWeek dates =
-    viewRow (List.map viewDay dates)
-
-
-viewMonth : List (List Utils.CalendarDate) -> Html Msg
-viewMonth weeks =
-    H.div
-        [ Attr.class "p-4 border rounded w-72 space-y-2"
-        ]
-    <|
-        [ viewBox <|
-            List.concat
-                [ viewMonthHeader <| Maybe.withDefault [] (List.head weeks)
-                , List.concatMap viewWeek weeks
-                ]
-        ]
-
-
-viewMonthHeader : List Utils.CalendarDate -> List (Html Msg)
-viewMonthHeader dates =
-    viewRow
-        (List.map (\item -> H.div [ Attr.class "text-slate-300" ] [ H.text <| Date.format "EEEEE" item.date ]) dates)
-
-
-
--- H.div [ Attr.class "grid grid-cols-7 items-center gap-1" ] <|
---     (getWeekDaysFromWeekDates dates |> List.map (\wkday -> H.div [ Attr.class "flex items-center justify-center opacity-30" ] [ H.text <| Utils.weekdayHead wkday ]))
-
-
-viewRow : List (Html Msg) -> List (Html Msg)
-viewRow =
-    List.map
-        (\item ->
-            H.div
-                [ Attr.class "flex items-center justify-center"
-                ]
-                [ item ]
-        )
-
-
-viewBox : List (Html Msg) -> Html Msg
-viewBox rows =
-    H.div
-        [ Attr.class "grid grid-cols-7 items-center gap-1"
-        ]
-        rows
-
-
-getWeekDaysFromWeekDates : List Utils.CalendarDate -> List Date.Weekday
-getWeekDaysFromWeekDates dates =
-    List.map (\{ date } -> Date.weekday date) dates
-
-
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
+
+
+view : Model -> Html Msg
+view _ =
+    let
+        dates =
+            getDatesForMonth Time.Jul 2023
+    in
+    H.div [ Attr.class "w-72" ]
+        [ viewWeekHeader (Maybe.withDefault [] (List.head dates))
+        , viewMonth dates
+        ]
+
+
+type alias Week =
+    List Date.Date
+
+
+type alias Month =
+    Time.Month
+
+
+type alias Year =
+    Int
+
+
+getStartDate : Month -> Year -> Date.Date
+getStartDate month year =
+    Date.fromCalendarDate year month 1
+
+
+type alias StartOfWeek =
+    Time.Weekday
+
+
+getProperStartDate : StartOfWeek -> Month -> Year -> Date.Date
+getProperStartDate startOfWeek month year =
+    Date.floor (weekdayToInterval startOfWeek) (Date.fromCalendarDate year month 1)
+
+
+weekdayToInterval : Time.Weekday -> Date.Interval
+weekdayToInterval weekday =
+    case weekday of
+        Time.Sun ->
+            Date.Sunday
+
+        Time.Mon ->
+            Date.Monday
+
+        Time.Tue ->
+            Date.Tuesday
+
+        Time.Wed ->
+            Date.Wednesday
+
+        Time.Thu ->
+            Date.Thursday
+
+        Time.Fri ->
+            Date.Friday
+
+        Time.Sat ->
+            Date.Saturday
+
+
+getProperEndDate : StartOfWeek -> Month -> Year -> Date.Date
+getProperEndDate startOfWeek month year =
+    let
+        endDate =
+            Date.add Date.Months 1 (Date.fromCalendarDate year month 1) |> Date.add Date.Days -1
+    in
+    Date.ceiling (weekdayToInterval startOfWeek) endDate |> Date.add Date.Days -1
+
+
+getDatesBetween : Date.Date -> Date.Date -> List Date.Date
+getDatesBetween start end =
+    Date.range Date.Day 1 start (Date.add Date.Days 1 end)
+
+
+getMonth : List Date.Date -> List Week
+getMonth =
+    List.Extra.groupsOf 7
+
+
+getDatesForMonth : Month -> Year -> List Week
+getDatesForMonth month year =
+    let
+        start =
+            getProperStartDate Time.Sun month year
+
+        end =
+            getProperEndDate Time.Sun month year
+
+        dates =
+            getDatesBetween start end
+    in
+    getMonth dates
+
+
+viewDate : Date.Date -> Html Msg
+viewDate date =
+    H.div [ Attr.class "flex items-center justify-center" ] [ H.text <| Date.format "d" date ]
+
+
+viewWeek : Week -> Html Msg
+viewWeek dates =
+    H.div [ Attr.class "grid grid-cols-7 items-center gap-4" ] (List.map viewDate dates)
+
+
+viewMonth : List Week -> Html Msg
+viewMonth weeks =
+    H.div [] (List.map viewWeek weeks)
+
+
+viewWeekHeader : Week -> Html Msg
+viewWeekHeader week =
+    H.div [ Attr.class "grid grid-cols-7 items-center gap-2" ] <|
+        List.map (\date -> H.div [ Attr.class "flex items-center justify-center" ] [ H.text <| Date.format "EEEEE" date ]) week
