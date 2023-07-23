@@ -44,8 +44,8 @@ subscriptions _ =
 view : Model -> Html Msg
 view _ =
     let
-        year =
-            2023
+        years =
+            List.range 1900 3000
 
         months =
             [ Time.Jan
@@ -63,7 +63,10 @@ view _ =
             ]
     in
     H.div [ Attr.class "p-8 grid grid-cols-4 gap-4 items-stretch" ]
-        (List.map (\month -> viewMonthBox month year) months)
+        (List.concatMap
+            (\year -> List.map (\month -> viewMonthBox month year) months)
+            years
+        )
 
 
 type alias CalendarDate =
