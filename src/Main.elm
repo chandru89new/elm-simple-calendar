@@ -47,16 +47,23 @@ view _ =
         year =
             2023
 
-        month =
-            Time.Jul
-
-        dates =
-            getDatesForMonth month year
+        months =
+            [ Time.Jan
+            , Time.Feb
+            , Time.Mar
+            , Time.Apr
+            , Time.May
+            , Time.Jun
+            , Time.Jul
+            , Time.Aug
+            , Time.Sep
+            , Time.Oct
+            , Time.Nov
+            , Time.Dec
+            ]
     in
-    H.div [ Attr.class "w-72" ]
-        [ H.div [ Attr.class "p-2" ] [ H.text (Date.format "MMMM YYYY" (Date.fromCalendarDate year month 1)) ]
-        , viewBox <| List.concat [ viewWeekHeader (Maybe.withDefault [] (List.head dates)), viewMonth dates ]
-        ]
+    H.div [ Attr.class "p-8 grid grid-cols-4 gap-4 items-stretch" ]
+        (List.map (\month -> viewMonthBox month year) months)
 
 
 type alias CalendarDate =
@@ -176,14 +183,26 @@ viewMonth weeks =
 
 viewWeekHeader : Week -> List (Html Msg)
 viewWeekHeader week =
-    List.map (\{ date } -> H.div [ Attr.class "flex items-center justify-center" ] [ H.text <| Date.format "EEEEE" date ]) week
+    List.map (\{ date } -> H.div [ Attr.class "flex items-center justify-center opacity-40" ] [ H.text <| Date.format "EEEEE" date ]) week
 
 
 viewBox : List (Html Msg) -> Html Msg
 viewBox =
-    H.div [ Attr.class "grid grid-cols-7 gap-2 items-center" ]
+    H.div [ Attr.class "grid grid-cols-7 gap-x-2 gap-y-4 items-center" ]
 
 
 viewItem : List (Html Msg) -> Html Msg
 viewItem =
     H.div [ Attr.class "flex items-center justify-center" ]
+
+
+viewMonthBox : Month -> Year -> Html Msg
+viewMonthBox month year =
+    let
+        dates =
+            getDatesForMonth month year
+    in
+    H.div [ Attr.class "rounded-xl p-4 shadow-xl" ]
+        [ H.div [ Attr.class "p-2 text-center" ] [ H.text (Date.format "MMMM YYYY" (Date.fromCalendarDate year month 1)) ]
+        , viewBox <| List.concat [ viewWeekHeader (Maybe.withDefault [] (List.head dates)), viewMonth dates ]
+        ]
