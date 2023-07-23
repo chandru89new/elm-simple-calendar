@@ -126,8 +126,15 @@ getProperEndDate startOfWeek month year =
     let
         endDate =
             Date.add Date.Months 1 (Date.fromCalendarDate year month 1) |> Date.add Date.Days -1
+
+        endDateIsStartOfWeek =
+            Date.weekday endDate == startOfWeek
     in
-    Date.ceiling (weekdayToInterval startOfWeek) endDate |> Date.add Date.Days -1
+    if endDateIsStartOfWeek then
+        Date.add Date.Days 7 endDate
+
+    else
+        Date.ceiling (weekdayToInterval startOfWeek) endDate |> Date.add Date.Days -1
 
 
 getDatesBetween : Date.Date -> Date.Date -> List Date.Date
@@ -203,6 +210,6 @@ viewMonthBox month year =
             getDatesForMonth month year
     in
     H.div [ Attr.class "rounded-xl p-4 shadow-xl" ]
-        [ H.div [ Attr.class "p-2 text-center" ] [ H.text (Date.format "MMMM YYYY" (Date.fromCalendarDate year month 1)) ]
+        [ H.div [ Attr.class "p-2 text-center" ] [ H.text (Date.format "MMMM y" (Date.fromCalendarDate year month 1)) ]
         , viewBox <| List.concat [ viewWeekHeader (Maybe.withDefault [] (List.head dates)), viewMonth dates ]
         ]
