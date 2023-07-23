@@ -4,8 +4,8 @@ import Browser
 import Date
 import Html as H exposing (Html)
 import Html.Attributes as Attr
+import List.Extra
 import Time
-import Utils
 
 
 main : Program () Model Msg
@@ -36,81 +36,183 @@ update _ _ =
     ( 1, Cmd.none )
 
 
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.none
+
+
 view : Model -> Html Msg
 view _ =
-    H.div [] <|
-        [ viewMonth (Utils.getDatesToRender Time.Sun Time.Jul 2023) ]
+    let
+        years =
+            List.range 1900 3000
+
+        months =
+            [ Time.Jan
+            , Time.Feb
+            , Time.Mar
+            , Time.Apr
+            , Time.May
+            , Time.Jun
+            , Time.Jul
+            , Time.Aug
+            , Time.Sep
+            , Time.Oct
+            , Time.Nov
+            , Time.Dec
+            ]
+    in
+    H.div [ Attr.class "p-8 grid grid-cols-4 gap-4 items-stretch" ]
+        (List.concatMap
+            (\year -> List.map (\month -> viewMonthBox month year) months)
+            years
+        )
 
 
-viewDay : Utils.CalendarDate -> Html Msg
-viewDay { date, dateBelongsToCurrentMonth } =
+type alias CalendarDate =
+    { date : Date.Date, dateInCurrentMonth : Bool }
+
+
+type alias Week =
+    List CalendarDate
+
+
+type alias Month =
+    Time.Month
+
+
+type alias Year =
+    Int
+
+
+getStartDate : Month -> Year -> Date.Date
+getStartDate month year =
+    Date.fromCalendarDate year month 1
+
+
+type alias StartOfWeek =
+    Time.Weekday
+
+
+getProperStartDate : StartOfWeek -> Month -> Year -> Date.Date
+getProperStartDate startOfWeek month year =
+    Date.floor (weekdayToInterval startOfWeek) (Date.fromCalendarDate year month 1)
+
+
+weekdayToInterval : Time.Weekday -> Date.Interval
+weekdayToInterval weekday =
+    case weekday of
+        Time.Sun ->
+            Date.Sunday
+
+        Time.Mon ->
+            Date.Monday
+
+        Time.Tue ->
+            Date.Tuesday
+
+        Time.Wed ->
+            Date.Wednesday
+
+        Time.Thu ->
+            Date.Thursday
+
+        Time.Fri ->
+            Date.Friday
+
+        Time.Sat ->
+            Date.Saturday
+
+
+getProperEndDate : StartOfWeek -> Month -> Year -> Date.Date
+getProperEndDate startOfWeek month year =
+    let
+        endDate =
+            Date.add Date.Months 1 (Date.fromCalendarDate year month 1) |> Date.add Date.Days -1
+
+        endDateIsStartOfWeek =
+            Date.weekday endDate == startOfWeek
+    in
+    if endDateIsStartOfWeek then
+        Date.add Date.Days 7 endDate
+
+    else
+        Date.ceiling (weekdayToInterval startOfWeek) endDate |> Date.add Date.Days -1
+
+
+getDatesBetween : Date.Date -> Date.Date -> List Date.Date
+getDatesBetween start end =
+    Date.range Date.Day 1 start (Date.add Date.Days 1 end)
+
+
+getMonth : List CalendarDate -> List Week
+getMonth =
+    List.Extra.groupsOf 7
+
+
+getDatesForMonth : Month -> Year -> List Week
+getDatesForMonth month year =
+    let
+        start =
+            getProperStartDate Time.Sun month year
+
+        end =
+            getProperEndDate Time.Sun month year
+
+        dates =
+            getDatesBetween start end
+                |> List.map (\date -> { date = date, dateInCurrentMonth = Date.month date == month })
+    in
+    getMonth dates
+
+
+viewDate : CalendarDate -> Html Msg
+viewDate { date, dateInCurrentMonth } =
     H.div
         [ Attr.class "flex items-center justify-center"
         , Attr.class
-            (if dateBelongsToCurrentMonth then
+            (if dateInCurrentMonth then
                 ""
 
              else
-                "opacity-10"
+                "opacity-0"
             )
         ]
         [ H.text <| Date.format "d" date ]
 
 
-viewWeek : List Utils.CalendarDate -> List (Html Msg)
+viewWeek : Week -> List (Html Msg)
 viewWeek dates =
-    viewRow (List.map viewDay dates)
+    List.map viewDate dates
 
 
-viewMonth : List (List Utils.CalendarDate) -> Html Msg
+viewMonth : List Week -> List (Html Msg)
 viewMonth weeks =
-    H.div
-        [ Attr.class "p-4 border rounded w-72 space-y-2"
-        ]
-    <|
-        [ viewBox <|
-            List.concat
-                [ viewMonthHeader <| Maybe.withDefault [] (List.head weeks)
-                , List.concatMap viewWeek weeks
-                ]
-        ]
+    List.concatMap viewWeek weeks
 
 
-viewMonthHeader : List Utils.CalendarDate -> List (Html Msg)
-viewMonthHeader dates =
-    viewRow
-        (List.map (\item -> H.div [ Attr.class "text-slate-300" ] [ H.text <| Date.format "EEEEE" item.date ]) dates)
-
-
-
--- H.div [ Attr.class "grid grid-cols-7 items-center gap-1" ] <|
---     (getWeekDaysFromWeekDates dates |> List.map (\wkday -> H.div [ Attr.class "flex items-center justify-center opacity-30" ] [ H.text <| Utils.weekdayHead wkday ]))
-
-
-viewRow : List (Html Msg) -> List (Html Msg)
-viewRow =
-    List.map
-        (\item ->
-            H.div
-                [ Attr.class "flex items-center justify-center"
-                ]
-                [ item ]
-        )
+viewWeekHeader : Week -> List (Html Msg)
+viewWeekHeader week =
+    List.map (\{ date } -> H.div [ Attr.class "flex items-center justify-center opacity-40" ] [ H.text <| Date.format "EEEEE" date ]) week
 
 
 viewBox : List (Html Msg) -> Html Msg
-viewBox rows =
-    H.div
-        [ Attr.class "grid grid-cols-7 items-center gap-1"
+viewBox =
+    H.div [ Attr.class "grid grid-cols-7 gap-x-2 gap-y-4 items-center" ]
+
+
+viewItem : List (Html Msg) -> Html Msg
+viewItem =
+    H.div [ Attr.class "flex items-center justify-center" ]
+
+
+viewMonthBox : Month -> Year -> Html Msg
+viewMonthBox month year =
+    let
+        dates =
+            getDatesForMonth month year
+    in
+    H.div [ Attr.class "rounded-xl p-4 shadow-xl" ]
+        [ H.div [ Attr.class "p-2 text-center" ] [ H.text (Date.format "MMMM y" (Date.fromCalendarDate year month 1)) ]
+        , viewBox <| List.concat [ viewWeekHeader (Maybe.withDefault [] (List.head dates)), viewMonth dates ]
         ]
-        rows
-
-
-getWeekDaysFromWeekDates : List Utils.CalendarDate -> List Date.Weekday
-getWeekDaysFromWeekDates dates =
-    List.map (\{ date } -> Date.weekday date) dates
-
-
-subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
