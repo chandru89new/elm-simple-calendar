@@ -44,12 +44,18 @@ subscriptions _ =
 view : Model -> Html Msg
 view _ =
     let
+        year =
+            2023
+
+        month =
+            Time.Jul
+
         dates =
-            getDatesForMonth Time.Jul 2023
+            getDatesForMonth month year
     in
     H.div [ Attr.class "w-72" ]
-        [ viewWeekHeader (Maybe.withDefault [] (List.head dates))
-        , viewMonth dates
+        [ H.div [ Attr.class "p-2" ] [ H.text (Date.format "MMMM YYYY" (Date.fromCalendarDate year month 1)) ]
+        , viewBox <| List.concat [ viewWeekHeader (Maybe.withDefault [] (List.head dates)), viewMonth dates ]
         ]
 
 
@@ -158,17 +164,26 @@ viewDate { date, dateInCurrentMonth } =
         [ H.text <| Date.format "d" date ]
 
 
-viewWeek : Week -> Html Msg
+viewWeek : Week -> List (Html Msg)
 viewWeek dates =
-    H.div [ Attr.class "grid grid-cols-7 items-center gap-4" ] (List.map viewDate dates)
+    List.map viewDate dates
 
 
-viewMonth : List Week -> Html Msg
+viewMonth : List Week -> List (Html Msg)
 viewMonth weeks =
-    H.div [] (List.map viewWeek weeks)
+    List.concatMap viewWeek weeks
 
 
-viewWeekHeader : Week -> Html Msg
+viewWeekHeader : Week -> List (Html Msg)
 viewWeekHeader week =
-    H.div [ Attr.class "grid grid-cols-7 items-center gap-2" ] <|
-        List.map (\{ date } -> H.div [ Attr.class "flex items-center justify-center" ] [ H.text <| Date.format "EEEEE" date ]) week
+    List.map (\{ date } -> H.div [ Attr.class "flex items-center justify-center" ] [ H.text <| Date.format "EEEEE" date ]) week
+
+
+viewBox : List (Html Msg) -> Html Msg
+viewBox =
+    H.div [ Attr.class "grid grid-cols-7 gap-2 items-center" ]
+
+
+viewItem : List (Html Msg) -> Html Msg
+viewItem =
+    H.div [ Attr.class "flex items-center justify-center" ]
