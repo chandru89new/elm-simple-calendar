@@ -53,8 +53,12 @@ view _ =
         ]
 
 
+type alias CalendarDate =
+    { date : Date.Date, dateInCurrentMonth : Bool }
+
+
 type alias Week =
-    List Date.Date
+    List CalendarDate
 
 
 type alias Month =
@@ -118,7 +122,7 @@ getDatesBetween start end =
     Date.range Date.Day 1 start (Date.add Date.Days 1 end)
 
 
-getMonth : List Date.Date -> List Week
+getMonth : List CalendarDate -> List Week
 getMonth =
     List.Extra.groupsOf 7
 
@@ -134,13 +138,24 @@ getDatesForMonth month year =
 
         dates =
             getDatesBetween start end
+                |> List.map (\date -> { date = date, dateInCurrentMonth = Date.month date == month })
     in
     getMonth dates
 
 
-viewDate : Date.Date -> Html Msg
-viewDate date =
-    H.div [ Attr.class "flex items-center justify-center" ] [ H.text <| Date.format "d" date ]
+viewDate : CalendarDate -> Html Msg
+viewDate { date, dateInCurrentMonth } =
+    H.div
+        [ Attr.class "flex items-center justify-center"
+        , Attr.class
+            (if dateInCurrentMonth then
+                ""
+
+             else
+                "opacity-0"
+            )
+        ]
+        [ H.text <| Date.format "d" date ]
 
 
 viewWeek : Week -> Html Msg
@@ -156,4 +171,4 @@ viewMonth weeks =
 viewWeekHeader : Week -> Html Msg
 viewWeekHeader week =
     H.div [ Attr.class "grid grid-cols-7 items-center gap-2" ] <|
-        List.map (\date -> H.div [ Attr.class "flex items-center justify-center" ] [ H.text <| Date.format "EEEEE" date ]) week
+        List.map (\{ date } -> H.div [ Attr.class "flex items-center justify-center" ] [ H.text <| Date.format "EEEEE" date ]) week
